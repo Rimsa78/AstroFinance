@@ -24,6 +24,7 @@ from engine.chart import ChartFact
 from engine import constants as C
 from kb import base_rates as BR
 from kb import knowledge as KN
+from kb import finance_knowledge as FK
 from reconcile import DISCLAIMER
 
 VARGA_ORDER = ["D1", "D2", "D3", "D4", "D7", "D9", "D10", "D12"]
@@ -241,6 +242,7 @@ def build_facts(chart: ChartFact, signals: dict, advice: list[dict], top: int = 
         },
         "advice_top": advice[:top],
         "classical_knowledge": KN.knowledge_for_chart(chart, signals),
+        "finance_knowledge": FK.finance_for_channels(advice, top),
         "rules": {
             "two_scores_never_merged": True,
             "reality_governs_on_conflict": True,
@@ -351,3 +353,123 @@ def generate_report(chart: ChartFact, signals: dict, advice: list[dict],
     except Exception as e:
         return (deterministic_report(chart, signals, advice, top)
                 + f"\n\n<!-- LLM reading unavailable ({e}); deterministic fallback used. -->")
+
+
+# =====================  FINANCE ANALYST AGENT  ==============================
+# The REALITY-layer twin of the Jyotishi. A sober economist, NOT a salesperson and
+# NOT an astrologer. It judges earning paths on fundamentals only.
+
+FINANCE_SYSTEM = (
+    "You are an independent financial & economics analyst writing a candid brief on "
+    "ways of earning a living. You are NOT a salesperson and NOT an astrologer — the "
+    "birth chart is not your evidence; fundamentals are.\n\n"
+    "ABSOLUTE RULES:\n"
+    "1. Use ONLY the data provided: each path's REALITY score, base rates (failure "
+    "rate, time-to-revenue, capital intensity, margin), channel economics, the "
+    "general principles, the durable macro context, and any LIVE 2026 data present. "
+    "Do NOT invent statistics or cite numbers you weren't given. If no live 2026 "
+    "data is present, say plainly that the read is on base rates + structural "
+    "context only.\n"
+    "2. NEVER promise or forecast returns, income figures, or guaranteed outcomes, "
+    "and give NO individualized investment advice. Speak in base rates, ranges, "
+    "risks, capital required, and 'what would have to be true' to succeed. This is "
+    "general information, NOT financial, investment, legal, or tax advice.\n"
+    "3. You are the REALITY/truth layer. Where astrology and economics conflict, the "
+    "economics govern the real decision. Keep your analysis independent of the "
+    "chart; do not 'merge' with the astrology score.\n"
+    "4. Be candid about downside, base-rate failure, survivorship bias, capital risk, "
+    "and time-to-revenue. Favor paths with sound unit economics and realistic "
+    "runways. Write a clear, structured analyst's brief in markdown."
+)
+
+FINANCE_OUTLINE = (
+    "Write a candid financial analyst's brief on this person's earning options, "
+    "using ONLY the supplied data. Cover, with headings:\n"
+    "1. **Read of the field** — what the REALITY scores and base rates say overall.\n"
+    "2. **Strongest bets on fundamentals** — the few paths with the best economics "
+    "(low failure, fast revenue, accessible capital, healthy margin); explain why "
+    "using their channel economics + the general principles.\n"
+    "3. **Proceed with caution / speculative** — paths with weak base rates, high "
+    "capital, or speculation risk (e.g. active trading, crypto, marketplaces); state "
+    "the risk and what would have to be true to justify them.\n"
+    "4. **Capital & time reality** — what each shortlisted path needs in money and "
+    "months before it pays, and the runway implication.\n"
+    "5. **Macro context (2026)** — apply the durable structural context; if live 2026 "
+    "data is present use it and say so, otherwise note this is structural only.\n"
+    "6. **Bottom line** — a sober prioritization on economics alone, plus the "
+    "disclaimer. Remember: the chart is NOT your evidence."
+)
+
+
+def build_finance_messages(advice: list[dict], top: int = 8) -> list[dict]:
+    facts = {
+        "channels": [{"id": e["id"], "name": e["name"],
+                      "reality_score": e["reality"]["score"],
+                      "reality_label": e["reality"]["label"],
+                      "live_data_used": e["reality"]["live_data_used"],
+                      "why_viable": e["reality"]["why_viable"],
+                      "why_risky": e["reality"]["why_risky"]}
+                     for e in advice[:top]],
+        "financials": financial_rows(advice[:top]),
+        "finance_knowledge": FK.finance_for_channels(advice, top),
+    }
+    content = (FINANCE_OUTLINE
+               + "\n\nHere is the data. Analyse ONLY from this:\n\n"
+               + json.dumps(facts, indent=2))
+    return [{"role": "user", "content": content}]
+
+
+def deterministic_finance_brief(advice: list[dict], top: int = 8) -> str:
+    live_used = any(e["reality"].get("live_data_used") for e in advice)
+    lines = [
+        "# Finance Analyst's brief",
+        "",
+        f"> {DISCLAIMER}",
+        "",
+        f"_Basis: base rates + structural context"
+        + ("" if not live_used else " + live 2026 data") + " only._",
+        "",
+        "## Ranked by fundamentals (REALITY)",
+        "",
+    ]
+    lines += _md_table(financial_rows(advice[:top]),
+                       ["Channel", "REALITY", "5-yr failure", "Time to revenue",
+                        "Capital intensity", "Margin potential", "Capital note"])
+    lines += ["", "## Per-path economics", ""]
+    fk = FK.finance_for_channels(advice, top)["channels"]
+    for e in advice[:top]:
+        eco = fk.get(e["id"])
+        if not eco:
+            continue
+        lines.append(f"### {e['name']} — REALITY {e['reality']['score']} "
+                     f"({e['reality']['label']})")
+        lines.append(f"- model: {eco['model']} · main cost: {eco['main_cost']}")
+        lines.append(f"- key risk: {eco['key_risk']}")
+        lines.append(f"- what good looks like: {eco['good']}")
+        lines.append("")
+    lines += ["## Macro context (durable, structural)", ""]
+    for k, v in FK.MACRO_CONTEXT.items():
+        lines.append(f"- **{k}** — {v['note']}")
+    lines += ["", "---", f"_{DISCLAIMER}_"]
+    return "\n".join(lines)
+
+
+def generate_finance_analysis(advice: list[dict], client=None,
+                              model: str = DEFAULT_MODEL, top: int = 8,
+                              max_tokens: int = MAX_TOKENS) -> str:
+    """Finance Analyst reading via the LLM if available, else deterministic brief."""
+    if client is None and not os.environ.get("ANTHROPIC_API_KEY"):
+        return deterministic_finance_brief(advice, top)
+    try:
+        if client is None:
+            import anthropic
+            client = anthropic.Anthropic()
+        msg = client.messages.create(
+            model=model, max_tokens=max_tokens, system=FINANCE_SYSTEM,
+            messages=build_finance_messages(advice, top),
+        )
+        text = "\n".join(b.text for b in msg.content if getattr(b, "type", None) == "text")
+        return text or deterministic_finance_brief(advice, top)
+    except Exception as e:
+        return (deterministic_finance_brief(advice, top)
+                + f"\n\n<!-- LLM finance analysis unavailable ({e}); fallback used. -->")

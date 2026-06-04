@@ -83,15 +83,16 @@ flavour/timing. Output always shows BOTH scores, labelled, never merged.
 engine/constants.py   ✅ classical reference data (lords, exaltations, nakshatras, dasha)
 engine/vargas.py      ✅ D1,D2,D3,D4,D7,D9,D10,D12 (exact Parashari)
 engine/chart.py       ✅ compute_chart() -> ChartFact (planets, houses, dasha, karakas)
-kb/channels.py        ✅ 21 earning channels + astro support/warn tags
+kb/channels.py        ✅ 35 earning channels + astro support/warn tags
 kb/base_rates.py      ✅ static base rates per channel (failure/ttr/capital/margin)
-kb/knowledge.py       ✅ cited Vedic corpus (grahas/bhavas/signs/nakshatras/yogas/dasha/29-yoga library/remedies/functional lords/doshas/varga meanings) + per-chart RAG
-signals.py            ✅ chart -> yogas + named signals (with reasons)
+kb/knowledge.py       ✅ cited Vedic corpus (grahas/bhavas/signs/nakshatras/29-yoga library/remedies/functional lords/doshas/varga) + per-chart RAG
+kb/finance_knowledge.py ✅ cited economics corpus (principles/macro context/per-channel economics) for the Finance Analyst
+signals.py            ✅ chart -> yogas + named signals + dosha/aspect/combustion detectors
 scoring.py            ✅ signals × channels -> ranked astro_score + explanations
 reality_check.py      ✅ reality_score (base rates + live-2026 via LiveDataProvider)
 reconcile.py          ✅ astro_score + reality_score -> DUAL-labelled advice
 live_data.py          ✅ WebSearchLiveProvider (real 2026 fetch via Claude+web_search, cached, gated)
-report.py             ✅ interpret-only report; LLM if ANTHROPIC_API_KEY else deterministic fallback
+report.py             ✅ TWO agents: Jyotishi reading + Finance Analyst brief (LLM if key, else deterministic)
 pdf_parser.py         ⛔ NOT built (AstroSage fallback)
 run.py                ✅ end-to-end CLI; flags --live (fetch 2026) / --report (write out/report.md)
 pipeline.py           ✅ analyze() seam shared by CLI + UI

@@ -60,6 +60,17 @@ BASE_RATES: dict[str, dict] = {
     "app_dev":        dict(failure_rate_5yr=0.60, time_to_revenue_mo=6,  capital_intensity=0.30, margin_potential=0.60, capital_note="build cost low, discovery/retention hard"),
     "fintech":        dict(failure_rate_5yr=0.70, time_to_revenue_mo=18, capital_intensity=0.70, margin_potential=0.60, capital_note="regulation + capital heavy, long runway"),
     "data_analytics": dict(failure_rate_5yr=0.45, time_to_revenue_mo=6,  capital_intensity=0.20, margin_potential=0.65, capital_note="skills-gated, steady enterprise demand"),
+
+    # --- more ways of making money ---
+    "digital_products": dict(failure_rate_5yr=0.65, time_to_revenue_mo=4,  capital_intensity=0.10, margin_potential=0.80, capital_note="near-zero marginal cost; distribution is the hard part"),
+    "paid_community":   dict(failure_rate_5yr=0.60, time_to_revenue_mo=5,  capital_intensity=0.10, margin_potential=0.70, capital_note="cheap to start; churn/retention is the battle"),
+    "marketplace":      dict(failure_rate_5yr=0.80, time_to_revenue_mo=12, capital_intensity=0.50, margin_potential=0.60, capital_note="chicken-and-egg liquidity; winner-take-most"),
+    # dividend income: low 'failure' but needs sizable principal; income scales with capital.
+    "dividend_income":  dict(failure_rate_5yr=0.25, time_to_revenue_mo=36, capital_intensity=0.70, margin_potential=0.50, capital_note="needs real capital; yield is modest and slow"),
+    "short_term_rental":dict(failure_rate_5yr=0.50, time_to_revenue_mo=4,  capital_intensity=0.60, margin_potential=0.40, capital_note="property cost + regulation + seasonality"),
+    "local_services":   dict(failure_rate_5yr=0.40, time_to_revenue_mo=2,  capital_intensity=0.25, margin_potential=0.45, capital_note="steady demand; capped by your time/crew"),
+    "licensing_ip":     dict(failure_rate_5yr=0.70, time_to_revenue_mo=18, capital_intensity=0.20, margin_potential=0.85, capital_note="high margin if it hits; most IP earns little (power-law)"),
+    "franchise":        dict(failure_rate_5yr=0.35, time_to_revenue_mo=9,  capital_intensity=0.85, margin_potential=0.30, capital_note="proven system but heavy upfront + ongoing royalties"),
 }
 
 # Cross-channel anchor (BLS): ~50% of new ventures fail within 5 years.

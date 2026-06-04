@@ -77,7 +77,8 @@ def main(argv: list[str]) -> int:
     written = ["out/chart.json", "out/scores.json", "out/advice.json"]
     if want_report:
         (out / "report.md").write_text(result.report_md)
-        written.append("out/report.md")
+        (out / "finance.md").write_text(result.finance_md)
+        written += ["out/report.md (Jyotishi reading)", "out/finance.md (Finance Analyst)"]
 
     asc = chart.ascendant
     print(f"\nChart: {chart.name or '(unnamed)'} | Asc {asc.sign_name} "

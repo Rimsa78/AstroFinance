@@ -91,8 +91,9 @@ live_used = any(e["reality"].get("live_data_used") for e in advice)
 st.caption(f"Lahiri ayanamsa {chart.ayanamsa:.3f}° · Whole-Sign houses · "
            f"live 2026 data: {'yes' if live_used else 'no (base rates only)'}")
 
-tab_channels, tab_chart, tab_report = st.tabs(
-    ["📊 Earning channels", "🪐 Chart & Vedic detail", "📝 Narrative report"])
+tab_channels, tab_chart, tab_report, tab_finance = st.tabs(
+    ["📊 Earning channels", "🪐 Chart & Vedic detail",
+     "📝 Jyotishi reading", "💰 Finance Analyst"])
 
 # =============================== CHANNELS ===================================
 with tab_channels:
@@ -156,24 +157,36 @@ with tab_chart:
 # =============================== REPORT =====================================
 with tab_report:
     if not has_key:
-        st.warning("**This is the structured fallback, not the full reading.** "
-                   "The complete *Vedic astrologer (Jyotishi)* reading — Lagna, "
-                   "graha-by-graha, bhavas, yogas, divisional charts, dasha timing, "
-                   "wealth/career, remedies, with classical citations & slokas — is "
-                   "written by the LLM agent and needs `ANTHROPIC_API_KEY` set. "
-                   "Set the key, restart the app, and re-Generate.")
+        st.warning("**Structured fallback shown.** The full *Jyotishi* reading "
+                   "(Lagna, grahas, bhavas, yogas, divisional charts, dasha, "
+                   "doshas, remedies, with citations & slokas) is written by the "
+                   "LLM agent and needs `ANTHROPIC_API_KEY`. Set it, restart, re-Generate.")
     if result.report_md:
         st.markdown(result.report_md)
     else:
         st.info("Enable 'Write a narrative report' in the sidebar to generate one.")
 
+with tab_finance:
+    st.caption("The REALITY layer's own voice — a sober economist, independent of "
+               "the chart. Never promises returns.")
+    if not has_key:
+        st.warning("**Structured fallback shown.** The full *Finance Analyst* brief "
+                   "is written by the LLM agent and needs `ANTHROPIC_API_KEY`. "
+                   "Live 2026 data also needs the key + the sidebar toggle.")
+    if result.finance_md:
+        st.markdown(result.finance_md)
+    else:
+        st.info("Enable 'Write a narrative report' in the sidebar to generate it.")
+
 # --- Downloads --------------------------------------------------------------
 st.divider()
-d1, d2, d3 = st.columns(3)
+d1, d2, d3, d4 = st.columns(4)
 d1.download_button("⬇ chart.json", chart.model_dump_json(indent=2), "chart.json")
 d2.download_button("⬇ advice.json",
                    json.dumps({"disclaimer": DISCLAIMER, "advice": advice}, indent=2),
                    "advice.json")
 if result.report_md:
-    d3.download_button("⬇ report.md", result.report_md, "report.md")
+    d3.download_button("⬇ reading.md", result.report_md, "reading.md")
+if result.finance_md:
+    d4.download_button("⬇ finance.md", result.finance_md, "finance.md")
 st.caption(DISCLAIMER)
