@@ -85,6 +85,7 @@ engine/vargas.py      ✅ D1,D2,D3,D4,D7,D9,D10,D12 (exact Parashari)
 engine/chart.py       ✅ compute_chart() -> ChartFact (planets, houses, dasha, karakas)
 kb/channels.py        ✅ 21 earning channels + astro support/warn tags
 kb/base_rates.py      ✅ static base rates per channel (failure/ttr/capital/margin)
+kb/knowledge.py       ✅ cited Vedic corpus (grahas/bhavas/signs/nakshatras/yogas/dasha/29-yoga library/remedies/functional lords/doshas/varga meanings) + per-chart RAG
 signals.py            ✅ chart -> yogas + named signals (with reasons)
 scoring.py            ✅ signals × channels -> ranked astro_score + explanations
 reality_check.py      ✅ reality_score (base rates + live-2026 via LiveDataProvider)
@@ -113,10 +114,11 @@ DESIGN.md             ✅ full architecture + implemented-vs-spec status table
       seam). `reconcile.py` produces DUAL-labelled advice (two scores, never
       merged); reality governs verdicts on conflict. Wired into `run.py` ->
       out/advice.json. A real `LiveDataProvider` (web search) is still TODO.
-- [ ] **Phase C — Corpus ingestion schema.** `kb/rules/` as cited YAML rules
-      (`id, description, classical_ref, school, when (DSL), signals, tags`) + a ~150-
-      line DSL evaluator exposing `lord_of/house_of/dignity/strength/in_kendra`.
-      Migrate the Python-predicate rules in `signals.py` into cited YAML incrementally.
+- [~] **Phase C — Corpus ingestion schema.** ✅ First cut: `kb/knowledge.py` is a
+      cited interpretive corpus (graha karakatva, bhava significations, sign traits,
+      27 nakshatras, yogas, dasha themes) with `knowledge_for_chart()` doing per-chart
+      RAG into the Jyotishi agent (report.py). STILL TODO: migrate to `kb/rules/`
+      YAML with a `when`-DSL evaluator, and fold signals.py predicates into cited rules.
 - [ ] **Phase D — Input robustness.** Geocoding + historical timezone resolution so
       input is "Kathmandu, 1992-03-21 06:45" not raw coordinates.
 - [ ] **Phase E — Ashtakavarga (SAV/BAV) + Chalit.** Classical benefic tables

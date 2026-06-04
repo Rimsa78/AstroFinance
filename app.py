@@ -155,6 +155,13 @@ with tab_chart:
 
 # =============================== REPORT =====================================
 with tab_report:
+    if not has_key:
+        st.warning("**This is the structured fallback, not the full reading.** "
+                   "The complete *Vedic astrologer (Jyotishi)* reading — Lagna, "
+                   "graha-by-graha, bhavas, yogas, divisional charts, dasha timing, "
+                   "wealth/career, remedies, with classical citations & slokas — is "
+                   "written by the LLM agent and needs `ANTHROPIC_API_KEY` set. "
+                   "Set the key, restart the app, and re-Generate.")
     if result.report_md:
         st.markdown(result.report_md)
     else:

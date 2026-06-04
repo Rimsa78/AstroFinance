@@ -80,6 +80,13 @@ def test_generate_report_uses_client_when_provided():
     fake = _FakeClient()
     out = R.generate_report(chart, signals, advice, client=fake)
     assert "Fake LLM report" in out
-    # the system prompt enforces interpret-only + separation
-    assert "NEVER compute" in fake.kw["system"]
-    assert "Never merge" in fake.kw["system"]
+    # the system prompt establishes the Jyotishi persona + interpret-only + separation
+    sysp = fake.kw["system"]
+    assert "Jyotishi" in sysp or "Jyotirvid" in sysp
+    assert "Interpret ONLY" in sysp
+    assert "NEVER invent" in sysp
+    assert "Never merge" in sysp
+    # the user turn carries the full computed facts and the multi-section outline
+    user_msg = fake.kw["messages"][0]["content"]
+    assert "Graha by graha" in user_msg
+    assert chart.ascendant.sign_name in user_msg

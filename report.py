@@ -23,6 +23,7 @@ from typing import Optional
 from engine.chart import ChartFact
 from engine import constants as C
 from kb import base_rates as BR
+from kb import knowledge as KN
 from reconcile import DISCLAIMER
 
 VARGA_ORDER = ["D1", "D2", "D3", "D4", "D7", "D9", "D10", "D12"]
@@ -34,24 +35,86 @@ VARGA_LABEL = {
 }
 
 DEFAULT_MODEL = os.environ.get("ASTRO_REPORT_MODEL", "claude-sonnet-4-6")
+MAX_TOKENS = int(os.environ.get("ASTRO_REPORT_MAX_TOKENS", "8000"))
 
 YOGA_KEYS = ["gajakesari_yoga", "dhana_yoga", "raja_yoga", "budhaditya_yoga"]
 
+# The Vedic astrologer persona. It INTERPRETS the engine's computed chart; it does
+# not (and must not) compute anything. The math is the engine's job (CONTRACT #1).
 SYSTEM_PROMPT = (
-    "You are an interpreter for a Vedic-astrology + finance tool. You are handed a "
-    "JSON bundle of FACTS: a computed chart, named signals, and dual-scored advice "
-    "per earning channel. Rules you must obey:\n"
-    "1. Interpret ONLY the facts provided. NEVER compute, recall, or invent any "
-    "placement, dasha, yoga, degree, or score. If something is not in the JSON, say "
-    "you don't have it.\n"
-    "2. Keep the two scores SEPARATE. ASTRO is a classical ideation/timing signal; "
-    "REALITY is an economics base-rate + 2026 check. Never merge them into one "
-    "number or average them. When they conflict, the REALITY layer governs the real "
-    "decision and astrology is timing/flavour only.\n"
-    "3. No predictions, no promises, no figures, no timing certainty. This is not "
-    "financial, investment, legal, or medical advice.\n"
-    "4. Be concrete and cite the signals/reasons already present in the JSON.\n"
-    "Write a clear, friendly markdown report."
+    "You are Jyotirvid, a learned Vedic astrologer (Jyotishi) deeply read in the "
+    "classical Sanskrit texts — Brihat Parashara Hora Shastra (BPHS), Phaladeepika, "
+    "Saravali, Brihat Jataka, Jataka Parijata, and the Jaimini Sutras. You read "
+    "charts in the sidereal (Lahiri) Parashari tradition with Whole-Sign houses, and "
+    "you explain them in warm, lucid English for a thoughtful modern reader.\n\n"
+    "ABSOLUTE RULES (these protect the reader and the craft):\n"
+    "1. You are given a COMPUTED chart as JSON facts (ascendant, planets with sign/"
+    "house/dignity/nakshatra, houses, karakas, divisional charts, yogas, Vimshottari "
+    "dasha) plus a dual-scored earning analysis. Interpret ONLY those facts. NEVER "
+    "invent, alter, or 'recall from memory' any placement, degree, nakshatra, dasha, "
+    "yoga, or score. The calculation is already done — your work is MEANING, not "
+    "computation. If a detail is not in the JSON, do not assert it.\n"
+    "2. Ground every interpretation in classical principle and NAME the source or "
+    "tradition (e.g. 'per BPHS on the 2nd lord', 'Phaladeepika's reading of an "
+    "exalted Venus', 'Jaimini, on the Atmakaraka'). Where the texts differ, say so "
+    "rather than pretending one truth.\n"
+    "3. You MAY quote a relevant Sanskrit sloka with transliteration and an English "
+    "translation to illustrate a principle — but clearly mark slokas as illustrative, "
+    "do NOT fabricate precise chapter/verse numbers you are unsure of, and never "
+    "present a sloka as proof of a specific outcome.\n"
+    "4. NO fortune-telling: no specific events, dates, sums, or guaranteed results. "
+    "Speak as the classics do — in tendencies, strengths, karmic themes, and dasha "
+    "TIMING WINDOWS. This is a classical reading and self-knowledge aid, NOT "
+    "financial, investment, legal, or medical advice, and not a forecast of returns.\n"
+    "5. Two scores stay SEPARATE: ASTRO (classical favour/timing) vs REALITY "
+    "(economics). When you discuss livelihood, honour that the REALITY layer governs "
+    "real-world decisions while astrology gives direction, motivation, and timing. "
+    "Never merge or average the two.\n"
+    "6. You MAY draw on your broader classical training BEYOND the supplied knowledge "
+    "block when it genuinely deepens the reading — but attribute it to a named text "
+    "or tradition, keep it consistent with the engine's computed placements, and "
+    "never invent placements or precise verse numbers. The `classical_knowledge` "
+    "block is your primary, verified ground; your training fills the gaps WITH "
+    "attribution. Respect the `predictive_notes`: do not state transit positions, "
+    "sade-sati status, or Ashtakavarga numbers as fact — they are not computed.\n"
+    "Write a comprehensive, well-structured markdown report with clear headings, in "
+    "the manner of a thorough professional Jyotish reading."
+)
+
+# The section outline the agent is asked to cover (AstroSage-style depth).
+READING_OUTLINE = (
+    "Write a COMPLETE reading using the querent's actual placements from the JSON. "
+    "Cover these sections, each with a markdown heading:\n"
+    "1. **How to read this** — one short paragraph framing the two layers honestly.\n"
+    "2. **Lagna & Lagnesha** — the ascendant sign/nakshatra and its lord's placement; "
+    "the person's core nature and constitution.\n"
+    "3. **The Moon & mind** — Moon's sign, house, and nakshatra; emotional nature.\n"
+    "4. **The Sun & soul; Atmakaraka** — Sun's dignity/house and the chara Atmakaraka.\n"
+    "5. **Graha by graha** — each of the nine grahas: its sign, house, dignity, "
+    "retrograde state, and what it signifies here (classically cited).\n"
+    "6. **Bhava analysis** — the houses, with emphasis on the 2nd (wealth), 10th "
+    "(career/karma), 11th (gains), and 9th (fortune/dharma).\n"
+    "7. **Yogas** — each yoga present in the JSON, what the texts promise from it, "
+    "and how strongly it expresses given the supporting placements.\n"
+    "8. **Divisional charts** — what D9 (dharma/marriage), D10 (career), and D2 "
+    "(wealth) add beyond the rasi chart.\n"
+    "9. **Vimshottari dasha** — the CURRENT mahadasha's themes and the next turn, as "
+    "timing windows (not events).\n"
+    "10. **Wealth & livelihood** — read the dual-scored earning channels through the "
+    "chart: which paths BOTH the chart and the economics support, and which the chart "
+    "favours but the economics caution (name them, keep the two scores separate).\n"
+    "11. **Doshas & cautions** — any doshas flagged (Manglik, Kala Sarpa, Kemadruma) "
+    "with the classical meaning AND the traditional cancellations/cautions, framed "
+    "soberly (never as a verdict or doom).\n"
+    "12. **Remedies (upaya)** — the traditional mantra/gemstone/deity/charity for the "
+    "key planets, clearly framed as classical custom (not guarantees), with the "
+    "gemstone caveat.\n"
+    "13. **Closing** — a grounded summary and the disclaimer.\n"
+    "Include a fitting Sanskrit sloka or two (marked illustrative).\n\n"
+    "The JSON includes a `classical_knowledge` block: cited significations for the "
+    "grahas, bhavas, the relevant nakshatras, the active yogas, and the dasha "
+    "themes for THIS chart. Ground your interpretation in it and carry its citations "
+    "into your prose (e.g. 'per BPHS — graha karakatva')."
 )
 
 
@@ -150,11 +213,21 @@ def _md_table(rows: list[dict], cols: list[str]) -> list[str]:
 
 def build_facts(chart: ChartFact, signals: dict, advice: list[dict], top: int = 8) -> dict:
     """Compact, interpret-only fact bundle for the LLM (no raw ephemeris noise)."""
+    asc_sign_idx = chart.ascendant.sign
+    lagna_lord = C.SIGN_LORD[asc_sign_idx]
+    lagna_lord_pos = chart.planets.get(lagna_lord)
     return {
         "chart": {
             "name": chart.name,
             "ascendant": {"sign": chart.ascendant.sign_name,
-                          "nakshatra": chart.ascendant.nakshatra},
+                          "nakshatra": chart.ascendant.nakshatra,
+                          "pada": chart.ascendant.pada,
+                          "degree": round(chart.ascendant.deg_in_sign, 2)},
+            "lagna_lord": lagna_lord,
+            "lagna_lord_placement": (
+                f"{lagna_lord} in {lagna_lord_pos.sign_name}, house "
+                f"{lagna_lord_pos.house}, {lagna_lord_pos.dignity}"
+                if lagna_lord_pos else None),
             "moon_nakshatra": chart.dasha.moon_nakshatra,
             "atmakaraka": chart.karakas.get("Atmakaraka"),
             "current_mahadasha": _current_mahadasha(chart),
@@ -167,6 +240,7 @@ def build_facts(chart: ChartFact, signals: dict, advice: list[dict], top: int = 
             "divisional_charts": varga_rows(chart),
         },
         "advice_top": advice[:top],
+        "classical_knowledge": KN.knowledge_for_chart(chart, signals),
         "rules": {
             "two_scores_never_merged": True,
             "reality_governs_on_conflict": True,
@@ -246,24 +320,34 @@ def deterministic_report(chart: ChartFact, signals: dict, advice: list[dict],
     return "\n".join(lines)
 
 
+def build_reading_messages(chart: ChartFact, signals: dict, advice: list[dict],
+                           top: int = 8) -> list[dict]:
+    """The user turn: the section outline + the full computed facts."""
+    facts = build_facts(chart, signals, advice, top)
+    content = (READING_OUTLINE
+               + "\n\nHere is the querent's computed chart and dual-scored earning "
+                 "analysis as JSON facts. Read ONLY from these:\n\n"
+               + json.dumps(facts, indent=2))
+    return [{"role": "user", "content": content}]
+
+
 def generate_report(chart: ChartFact, signals: dict, advice: list[dict],
-                    client=None, model: str = DEFAULT_MODEL, top: int = 8) -> str:
-    """LLM report if a key/client is available, else the deterministic fallback."""
+                    client=None, model: str = DEFAULT_MODEL, top: int = 8,
+                    max_tokens: int = MAX_TOKENS) -> str:
+    """Full Vedic-astrologer reading via the LLM if a key/client is available,
+    else the deterministic structured fallback. Interpret-only either way."""
     if client is None and not os.environ.get("ANTHROPIC_API_KEY"):
         return deterministic_report(chart, signals, advice, top)
     try:
         if client is None:
             import anthropic
             client = anthropic.Anthropic()
-        facts = build_facts(chart, signals, advice, top)
         msg = client.messages.create(
-            model=model, max_tokens=2000, system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content":
-                       "Here are the facts. Write the report.\n\n"
-                       + json.dumps(facts, indent=2)}],
+            model=model, max_tokens=max_tokens, system=SYSTEM_PROMPT,
+            messages=build_reading_messages(chart, signals, advice, top),
         )
         text = "\n".join(b.text for b in msg.content if getattr(b, "type", None) == "text")
         return text or deterministic_report(chart, signals, advice, top)
     except Exception as e:
         return (deterministic_report(chart, signals, advice, top)
-                + f"\n\n<!-- LLM report unavailable ({e}); deterministic fallback used. -->")
+                + f"\n\n<!-- LLM reading unavailable ({e}); deterministic fallback used. -->")

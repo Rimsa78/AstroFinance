@@ -233,3 +233,85 @@ def compute_signals(chart: ChartFact) -> dict[str, dict]:
     sig["retrograde_emphasis"] = _retrograde_emphasis(chart)
 
     return sig
+
+
+# --- Drishti (graha aspects), combustion, doshas ----------------------------
+# These are deterministic chart-pattern detectors used by the report/knowledge
+# layer (NOT by channel scoring), so they stay out of SIGNAL_NAMES.
+
+# Special full aspects (in addition to the universal 7th): house offsets.
+_SPECIAL_ASPECTS = {"Mars": [4, 8], "Jupiter": [5, 9], "Saturn": [3, 10],
+                    "Rahu": [5, 9], "Ketu": [5, 9]}  # nodal aspects per many schools
+
+# Combustion orbs from the Sun in degrees (retrograde orbs in parentheses noted).
+_COMBUSTION_ORB = {"Moon": 12.0, "Mars": 17.0, "Mercury": 14.0,
+                   "Jupiter": 11.0, "Venus": 10.0, "Saturn": 15.0}
+
+
+def planet_aspects(chart) -> dict[str, list[int]]:
+    """House numbers each planet aspects (drishti). All grahas aspect the 7th;
+    Mars/Jupiter/Saturn (and the nodes per many schools) add special aspects.
+    classical_ref: BPHS — graha drishti."""
+    out = {}
+    for name, p in chart.planets.items():
+        offsets = [7] + _SPECIAL_ASPECTS.get(name, [])
+        out[name] = sorted({((p.house - 1 + (o - 1)) % 12) + 1 for o in offsets})
+    return out
+
+
+def combustion(chart) -> dict[str, bool]:
+    """Which planets are combust (too close to the Sun). classical_ref: asta/combustion."""
+    sun = chart.planets["Sun"].lon
+    out = {}
+    for name, orb in _COMBUSTION_ORB.items():
+        if name not in chart.planets:
+            continue
+        diff = abs((chart.planets[name].lon - sun + 180) % 360 - 180)
+        out[name] = diff <= orb
+    return out
+
+
+def detect_doshas(chart) -> dict[str, dict]:
+    """Deterministic detection of common doshas. Each carries why + classical_ref +
+    a school/variant note. Cancellations (bhanga) are noted, not auto-applied."""
+    res = {}
+
+    # Manglik / Kuja dosha: Mars in 1,2,4,7,8,12 from Lagna (common variant).
+    mars_h = chart.planets["Mars"].house
+    manglik_houses = {1, 2, 4, 7, 8, 12}
+    res["manglik"] = {
+        "present": mars_h in manglik_houses,
+        "why": (f"Mars occupies house {mars_h}"
+                + (" (a Manglik house from Lagna)" if mars_h in manglik_houses
+                   else " (not a Manglik house from Lagna)")),
+        "classical_ref": "Kuja/Mangal dosha (variants also count from Moon & Venus)",
+        "school": "Parashara (from Lagna)",
+    }
+
+    # Kala Sarpa: all 7 grahas hemmed within the Rahu–Ketu axis on one side.
+    rahu = chart.planets["Rahu"].lon
+    half1 = [(chart.planets[g].lon - rahu) % 360 for g in
+             ("Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn")]
+    all_one_side = all(d < 180 for d in half1) or all(d >= 180 for d in half1)
+    res["kala_sarpa"] = {
+        "present": all_one_side,
+        "why": ("all seven grahas fall on one side of the Rahu–Ketu axis"
+                if all_one_side else "grahas fall on both sides of the Rahu–Ketu axis"),
+        "classical_ref": "Kala Sarpa yoga/dosha (partial if axis is near a graha)",
+        "school": "modern classical",
+    }
+
+    # Kemadruma: no planet (excl. Sun/nodes) in the 2nd or 12th from the Moon.
+    moon_sign = chart.planets["Moon"].sign
+    neighbours = {(moon_sign + 1) % 12, (moon_sign - 1) % 12}
+    companions = [g for g in ("Mars", "Mercury", "Jupiter", "Venus", "Saturn")
+                  if chart.planets[g].sign in neighbours]
+    res["kemadruma"] = {
+        "present": len(companions) == 0,
+        "why": ("no graha in the 2nd or 12th from the Moon (isolated Moon)"
+                if not companions else
+                f"the Moon is supported by {', '.join(companions)} in the 2nd/12th"),
+        "classical_ref": "Kemadruma yoga (cancelled by kendra support / aspects)",
+        "school": "Parashara",
+    }
+    return res
