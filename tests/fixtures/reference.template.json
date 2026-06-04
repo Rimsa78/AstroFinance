@@ -1,0 +1,23 @@
+{
+  "_comment": "Template for an AstroSage reference chart used by validate.py (CONTRACT #8). Copy to reference.json and fill 'sign'/'nakshatra' from an AstroSage Lahiri report for these birth details. Replace ALL <...> placeholders with real AstroSage values; do not trust the engine to fill them. Add a second file (reference2.json) for a second birth to satisfy the >=2-births requirement.",
+  "birth": {
+    "name": "Reference Person 1",
+    "date": "1992-03-21",
+    "time": "06:45",
+    "lat": 27.7172,
+    "lon": 85.3240,
+    "tz": "Asia/Kathmandu"
+  },
+  "ascendant": { "sign": "<Sign>", "nakshatra": "<Nakshatra>" },
+  "planets": {
+    "Sun":     { "sign": "<Sign>", "nakshatra": "<Nakshatra>" },
+    "Moon":    { "sign": "<Sign>", "nakshatra": "<Nakshatra>" },
+    "Mars":    { "sign": "<Sign>", "nakshatra": "<Nakshatra>" },
+    "Mercury": { "sign": "<Sign>", "nakshatra": "<Nakshatra>" },
+    "Jupiter": { "sign": "<Sign>", "nakshatra": "<Nakshatra>" },
+    "Venus":   { "sign": "<Sign>", "nakshatra": "<Nakshatra>" },
+    "Saturn":  { "sign": "<Sign>", "nakshatra": "<Nakshatra>" },
+    "Rahu":    { "sign": "<Sign>", "nakshatra": "<Nakshatra>" },
+    "Ketu":    { "sign": "<Sign>", "nakshatra": "<Nakshatra>" }
+  }
+}

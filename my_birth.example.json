@@ -1,0 +1,17 @@
+{
+  "name": "Your Name",
+  "date": "1990-01-15",
+  "time": "14:30",
+  "lat": 27.7172,
+  "lon": 85.3240,
+  "tz": "Asia/Kathmandu",
+  "_help": {
+    "date": "YYYY-MM-DD (Gregorian)",
+    "time": "24-hour HH:MM local clock time at the place of birth",
+    "lat": "decimal degrees, North positive (e.g. Kathmandu 27.7172)",
+    "lon": "decimal degrees, East positive (e.g. Kathmandu 85.3240)",
+    "tz": "IANA timezone name for the birth place, e.g. Asia/Kathmandu, America/New_York",
+    "utc_offset": "OPTIONAL: use instead of tz if you only know the offset in hours, e.g. 5.75",
+    "note": "Copy this file to my_birth.json, fill in YOUR details, delete this _help block, then run: python run.py my_birth.json --report"
+  }
+}
